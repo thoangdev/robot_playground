@@ -1,0 +1,41 @@
+# Core Robot Framework
+robotframework>=6.1.1
+
+# Web Testing
+robotframework-seleniumlibrary>=6.2.0
+selenium>=4.15.0
+
+# API Testing
+robotframework-requests>=0.9.7
+requests>=2.31.0
+
+# Database Testing
+robotframework-databaselibrary>=1.4.4
+psycopg2-binary>=2.9.7  # PostgreSQL adapter
+PyMySQL>=1.1.0  # MySQL adapter
+cx-Oracle>=8.3.0  # Oracle adapter (optional)
+pymongo>=4.5.0  # MongoDB adapter
+
+# SSH and Remote Libraries
+robotframework-sshlibrary>=3.8.0
+
+# Additional useful libraries
+robotframework-pabot>=2.16.0  # Parallel execution
+robotframework-browser>=17.5.3  # Modern web testing alternative
+robotframework-datadriver>=1.11.1  # Data-driven testing
+
+# Reporting and Documentation
+robotframework-metrics>=3.4.1
+robotframework-robocop>=4.1.0  # Static code analysis
+robotframework-tidy>=4.5.0  # Code formatter
+
+# Development and Testing Tools
+pytest>=7.4.0  # For Python unit tests if needed
+faker>=19.12.0  # For generating test data
+
+# Security Testing
+robotframework-zaproxy>=2.0.0  # OWASP ZAP integration
+python-owasp-zap-v2.4>=0.0.21  # ZAP API client
+
+# Environment and Configuration
+python-dotenv>=1.0.0  # For .env file support

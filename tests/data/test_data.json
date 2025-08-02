@@ -1,0 +1,45 @@
+{
+  "users": {
+    "valid_user": {
+      "username": "testuser",
+      "email": "testuser@example.com",
+      "password": "SecurePass123!",
+      "first_name": "Test",
+      "last_name": "User"
+    },
+    "admin_user": {
+      "username": "admin",
+      "email": "admin@example.com",
+      "password": "AdminPass123!",
+      "role": "administrator"
+    }
+  },
+  "api_endpoints": {
+    "login": "/auth/login",
+    "users": "/api/users",
+    "products": "/api/products",
+    "orders": "/api/orders"
+  },
+  "test_products": [
+    {
+      "id": 1,
+      "name": "Test Product 1",
+      "price": 29.99,
+      "category": "electronics"
+    },
+    {
+      "id": 2,
+      "name": "Test Product 2",
+      "price": 49.99,
+      "category": "books"
+    }
+  ],
+  "form_data": {
+    "contact_form": {
+      "name": "John Doe",
+      "email": "john.doe@example.com",
+      "subject": "Test Inquiry",
+      "message": "This is a test message for automated testing."
+    }
+  }
+}

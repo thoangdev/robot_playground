@@ -1,0 +1,32 @@
+# Robot Framework configuration file
+# This file configures how Robot Framework behaves
+
+# Test execution settings
+outputdir: results
+loglevel: INFO
+report: report.html
+log: log.html
+output: output.xml
+
+# Include and exclude tags
+# include:
+#   - smoke
+# exclude:
+#   - slow
+
+# Set variables
+variable:
+  - BROWSER:chrome
+  - HEADLESS:False
+  - TIMEOUT:10s
+
+# Test data sources
+pythonpath:
+  - .
+  - tests/resources
+
+# Listener for additional reporting
+# listener: listeners.TestListener
+
+# Parallel execution with pabot (uncomment if using pabot)
+# processes: 4

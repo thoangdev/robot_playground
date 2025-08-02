@@ -1,0 +1,27 @@
+# Robot Framework Tidy configuration
+# This file configures the code formatter for Robot Framework
+
+--transform DiscardEmptySections
+--transform NormalizeNewlines
+--transform NormalizeSeparators
+--transform OrderSettings
+--transform OrderSettingsSection
+--transform ReplaceRunKeywordIf
+--transform SplitTooLongLine:line_length=120
+--transform NormalizeKeywordName
+--transform NormalizeTestCaseName
+--transform NormalizeVariableName
+--transform IndentNestedKeywords:indent=4
+--transform NormalizeAssignments
+--transform OrderTestCases
+--transform NormalizeTags
+--transform RenameTestCases
+--transform NormalizeKeywords
+
+# Output configuration
+--overwrite
+--no-tidy-config-changes
+--diff
+
+# Check mode (uncomment for validation only)
+# --check
