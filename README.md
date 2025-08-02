@@ -43,6 +43,7 @@ make setup
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
+rfbrowser init  # Initialize Browser library
 ```
 
 3. Copy environment configuration:
@@ -71,6 +72,9 @@ make test-parallel
 
 # Run tests with specific tags
 make test-tag      # Will prompt for tag name
+
+# Initialize Browser library (if needed)
+make init-browser
 
 # Database setup (choose one based on your database)
 make setup-db-postgres
@@ -350,9 +354,10 @@ pip audit
 ### Common Issues
 
 1. **Browser driver issues**: Ensure ChromeDriver/GeckoDriver is in PATH
-2. **Import errors**: Check Python path and virtual environment
-3. **Timeout issues**: Adjust timeout values in configuration
-4. **SSL errors**: Configure SSL settings for API tests
+2. **Browser library not initialized**: Run `rfbrowser init` after installing dependencies
+3. **Import errors**: Check Python path and virtual environment
+4. **Timeout issues**: Adjust timeout values in configuration
+5. **SSL errors**: Configure SSL settings for API tests
 
 ### Debug Mode
 

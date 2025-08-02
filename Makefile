@@ -12,6 +12,7 @@ help:
 	@echo "Available commands:"
 	@echo "  install     - Install dependencies"
 	@echo "  setup       - Setup virtual environment and install dependencies"
+	@echo "  init-browser - Initialize Browser library"
 	@echo "  test        - Run all tests"
 	@echo "  test-api    - Run API tests only"
 	@echo "  test-gui    - Run GUI tests only"
@@ -31,11 +32,18 @@ setup:
 	python3 -m venv $(VENV_DIR)
 	$(VENV_DIR)/bin/pip install --upgrade pip
 	$(VENV_DIR)/bin/pip install -r $(REQUIREMENTS)
+	$(VENV_DIR)/bin/rfbrowser init
 
 # Install dependencies
 .PHONY: install
 install:
 	pip install -r $(REQUIREMENTS)
+	rfbrowser init
+
+# Initialize Browser library
+.PHONY: init-browser
+init-browser:
+	rfbrowser init
 
 # Run all tests
 .PHONY: test
@@ -113,6 +121,7 @@ test-tag:
 .PHONY: ci-setup
 ci-setup:
 	pip install -r $(REQUIREMENTS)
+	rfbrowser init
 	mkdir -p results
 
 # Run tests for CI/CD with proper exit codes

@@ -11,7 +11,7 @@ requests>=2.31.0
 
 # Database Testing
 robotframework-databaselibrary>=1.4.4
-psycopg2-binary>=2.9.7  # PostgreSQL adapter
+# psycopg2-binary>=2.9.7  # PostgreSQL adapter
 PyMySQL>=1.1.0  # MySQL adapter
 cx-Oracle>=8.3.0  # Oracle adapter (optional)
 pymongo>=4.5.0  # MongoDB adapter
@@ -23,6 +23,7 @@ robotframework-sshlibrary>=3.8.0
 robotframework-pabot>=2.16.0  # Parallel execution
 robotframework-browser>=17.5.3  # Modern web testing alternative
 robotframework-datadriver>=1.11.1  # Data-driven testing
+robotframework-imagecompare #Image comparison
 
 # Reporting and Documentation
 robotframework-metrics>=3.4.1
@@ -34,7 +35,7 @@ pytest>=7.4.0  # For Python unit tests if needed
 faker>=19.12.0  # For generating test data
 
 # Security Testing
-robotframework-zaproxy>=2.0.0  # OWASP ZAP integration
+# robotframework-zaproxy>=2.0.0  # OWASP ZAP integration
 python-owasp-zap-v2.4>=0.0.21  # ZAP API client
 
 # Environment and Configuration
