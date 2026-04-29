@@ -1,8 +1,14 @@
 # Makefile for Robot Framework QA Template
 TEST_DIRS        = tests/
 VENV_DIR         = venv
+VENV_BIN         = $(VENV_DIR)/bin
 ROBOT_RUNNER     = ./scripts/run_robot_tests.sh
 PABOT_PROCESSES ?= 4
+PYTHON           = $(shell if [ -x "$(VENV_BIN)/python" ]; then echo "$(VENV_BIN)/python"; else echo python; fi)
+ROBOCOP          = $(shell if [ -x "$(VENV_BIN)/robocop" ]; then echo "$(VENV_BIN)/robocop"; else echo robocop; fi)
+ROBOTIDY         = $(shell if [ -x "$(VENV_BIN)/robotidy" ]; then echo "$(VENV_BIN)/robotidy"; else echo robotidy; fi)
+PIP_AUDIT        = $(shell if [ -x "$(VENV_BIN)/pip-audit" ]; then echo "$(VENV_BIN)/pip-audit"; else echo pip-audit; fi)
+ROBOTDASHBOARD   = $(shell if [ -x "$(VENV_BIN)/robotdashboard" ]; then echo "$(VENV_BIN)/robotdashboard"; else echo robotdashboard; fi)
 
 .PHONY: help setup install test test-api test-gui test-db test-mobile test-smoke test-parallel test-rerun test-tag test-zap lint format audit check serve dashboard clean
 help:
@@ -83,24 +89,24 @@ test-zap:
 # ── Quality ───────────────────────────────────────────────────────────────────
 
 lint:
-	robocop tests/
-	python -m py_compile tests/resources/*.py
+	$(ROBOCOP) tests/
+	$(PYTHON) -m py_compile tests/resources/*.py
 
 format:
-	robotidy tests/
+	$(ROBOTIDY) tests/
 
 audit:
-	pip-audit -r requirements.txt
+	$(PIP_AUDIT) -r requirements.txt
 
 check: lint format audit
 
 # ── Results ───────────────────────────────────────────────────────────────────
 
 serve:
-	python -m http.server 8000 --directory results/
+	$(PYTHON) -m http.server 8000 --directory results/
 
 dashboard:
-	robotdashboard -o results/output.xml -d results/robot_results.db -n results/dashboard.html -t "Robot Framework QA Dashboard" -u true
+	$(ROBOTDASHBOARD) -o results/output.xml -d results/robot_results.db -n results/dashboard.html -t "Robot Framework QA Dashboard" -u true
 
 clean:
 	rm -rf results/ __pycache__/

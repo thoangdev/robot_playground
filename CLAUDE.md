@@ -16,6 +16,7 @@
 tests/
 ├── api/          Robot Framework test suites for REST API validation
 ├── gui/          Browser Library / Playwright interaction tests
+├── pages/        Page Object resource files for UI locators and page actions
 ├── db/           Database CRUD and connectivity tests
 ├── mobile/       AppiumLibrary starter tests, skipped unless RUN_MOBILE_TESTS=true
 ├── resources/
@@ -35,7 +36,8 @@ results/                   Generated artifacts (gitignored)
 └── pabot_results/
 ```
 
-All shared behavior lives in `tests/resources/`. Tests import only from there — no logic in test files.
+All shared cross-suite behavior lives in `tests/resources/`. UI page-specific locators and interactions
+live in `tests/pages/`. Test files should read as scenarios and avoid direct selectors or page mechanics.
 
 ---
 
@@ -48,6 +50,8 @@ All shared behavior lives in `tests/resources/`. Tests import only from there �
 - **Independent tests.** No test may depend on another test's side effects. Use `Suite Setup`/`Suite Teardown` for shared fixtures.
 - **No logic in test cases.** All implementation goes in keywords (in `resources/`).
 - **Browser Library for GUI.** Use `Browser` keywords (`New Page`, `Fill Text`, `Click`, `Get Url`) through `common.robot`; do not add SeleniumLibrary.
+- **Page Object Model for GUI.** Put page locators and page-level actions in `tests/pages/<page>_page.robot`.
+  GUI suites import page resources and call intent-level keywords such as `Login With Credentials`.
 - **AppiumLibrary for mobile.** Keep mobile keywords in `tests/resources/mobile.robot`; suites must skip cleanly unless `RUN_MOBILE_TESTS=true`.
 - **120-character line limit.** Enforced by Robocop and Robotidy.
 - **Max 15 keyword calls per keyword.** Enforced by Robocop (`too-many-calls-in-keyword`).
@@ -134,6 +138,8 @@ robot_playground/
 │   ├── api/user_api_tests.robot
 │   ├── gui/login_tests.robot
 │   ├── db/database_tests.robot
+│   ├── pages/
+│   │   └── login_page.robot
 │   ├── resources/
 │   │   ├── common.robot
 │   │   ├── TestUtils.py

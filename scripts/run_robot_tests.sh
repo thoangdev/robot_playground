@@ -5,10 +5,25 @@ RESULTS_DIR="${RESULTS_DIR:-results}"
 RERUN_DIR="${RERUN_DIR:-${RESULTS_DIR}/rerun}"
 ROBOT_DASHBOARD_DB="${ROBOT_DASHBOARD_DB:-${RESULTS_DIR}/robot_results.db}"
 ROBOT_DASHBOARD_HTML="${ROBOT_DASHBOARD_HTML:-${RESULTS_DIR}/dashboard.html}"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PABOT_PROCESSES="${PABOT_PROCESSES:-4}"
 USE_PABOT="${USE_PABOT:-true}"
 USE_XVFB="${USE_XVFB:-false}"
 HEADLESS="${HEADLESS:-False}"
+
+resolve_tool() {
+    local tool_name="$1"
+    if [ -x "${PROJECT_ROOT}/venv/bin/${tool_name}" ]; then
+        printf '%s\n' "${PROJECT_ROOT}/venv/bin/${tool_name}"
+    else
+        printf '%s\n' "${tool_name}"
+    fi
+}
+
+ROBOT_CMD="${ROBOT_CMD:-$(resolve_tool robot)}"
+PABOT_CMD="${PABOT_CMD:-$(resolve_tool pabot)}"
+REBOT_CMD="${REBOT_CMD:-$(resolve_tool rebot)}"
+ROBOTDASHBOARD_CMD="${ROBOTDASHBOARD_CMD:-$(resolve_tool robotdashboard)}"
 
 rm -rf "${RERUN_DIR}" "${RESULTS_DIR}/screenshots"
 mkdir -p "${RESULTS_DIR}" "${RESULTS_DIR}/screenshots"
@@ -49,20 +64,20 @@ run_command() {
 run_initial() {
     if [ "${USE_PABOT}" = "true" ]; then
         echo "Running Robot Framework with pabot (${PABOT_PROCESSES} processes)."
-        run_command pabot \
+        run_command "${PABOT_CMD}" \
             --processes "${PABOT_PROCESSES}" \
             --outputdir "${RESULTS_DIR}" \
             "${shared_args[@]}" \
             "${test_paths[@]}"
     else
         echo "Running Robot Framework serially with robot."
-        run_command robot --outputdir "${RESULTS_DIR}" "${shared_args[@]}" "${test_paths[@]}"
+        run_command "${ROBOT_CMD}" --outputdir "${RESULTS_DIR}" "${shared_args[@]}" "${test_paths[@]}"
     fi
 }
 
 run_rerun() {
     mkdir -p "${RERUN_DIR}" "${RERUN_DIR}/screenshots"
-    run_command robot \
+    run_command "${ROBOT_CMD}" \
         --rerunfailed "${RESULTS_DIR}/output.xml" \
         --outputdir "${RERUN_DIR}" \
         "${shared_args[@]}" \
@@ -70,7 +85,7 @@ run_rerun() {
 }
 
 merge_results() {
-    rebot \
+    "${REBOT_CMD}" \
         --merge \
         --outputdir "${RESULTS_DIR}" \
         --xunit xunit.xml \
@@ -84,7 +99,7 @@ generate_dashboard() {
         return 0
     fi
 
-    robotdashboard \
+    "${ROBOTDASHBOARD_CMD}" \
         -o "${RESULTS_DIR}/output.xml" \
         -d "${ROBOT_DASHBOARD_DB}" \
         -n "${ROBOT_DASHBOARD_HTML}" \

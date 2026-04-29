@@ -67,7 +67,9 @@ robot_playground/
 │   ├── api/
 │   │   └── user_api_tests.robot  # REST API examples (CRUD + edge cases)
 │   ├── gui/
-│   │   └── login_tests.robot     # Browser Library login / logout examples
+│   │   └── login_tests.robot     # Scenario-level Browser Library login / logout examples
+│   ├── pages/
+│   │   └── login_page.robot      # Page Object resource: login locators and page actions
 │   ├── db/
 │   │   └── database_tests.robot  # SQLite by default; swap DB_TYPE for real DBs
 │   ├── mobile/
@@ -126,18 +128,21 @@ My Endpoint Returns 200
     Verify API Response    ${r}    200
 ```
 
-**GUI suite** — copy the pattern from `tests/gui/login_tests.robot`:
+**GUI suite** — use Page Object resources under `tests/pages/`.
+Keep locators and Browser Library mechanics in page resources, then keep suites scenario-focused:
 
 ```robot
 *** Settings ***
 Resource     ../resources/common.robot
-Test Setup   Open Browser To Base URL
+Resource     ../pages/login_page.robot
+Test Setup   Open Login Page
 Test Teardown    Take Screenshot On Failure
 
 *** Test Cases ***
-Page Title Is Correct
-    [Tags]    gui    smoke
-    Title Should Be    My Page
+Valid User Login
+    [Tags]    gui    smoke    login    positive
+    Login With Credentials    ${VALID_USERNAME}    ${VALID_PASSWORD}
+    Current Page Should Be Secure Area
 ```
 
 **Database suite** — `DB_TYPE=sqlite` by default. Change to `postgresql` / `mysql` / `mongodb` via `.env` or `--variable DB_TYPE:postgresql`.
@@ -221,6 +226,8 @@ Copy `.env.example` → `.env`. Key variables:
 - **Descriptive names** — read like a sentence: `Verify User Cannot Access Admin Panel`.
 - **Arguments over hardcoding** — pass selectors, URLs, timeouts as arguments with defaults.
 - **Short keywords** — if a keyword exceeds ~10 steps, decompose it (Robocop enforces this).
+- **Page Object Model for UI** — store page locators and page-level actions in `tests/pages/`, not in
+  `tests/gui/` suites. Suites should express user behavior and assertions, not selector mechanics.
 
 ### Tags
 
