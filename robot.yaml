@@ -1,32 +1,24 @@
-# Robot Framework configuration file
-# This file configures how Robot Framework behaves
+# Robot Framework default variable overrides.
+# These are applied at test-run time by the Makefile / CI.
+# Override any value on the command line: robot --variable BROWSER:firefox ...
 
-# Test execution settings
-outputdir: results
-loglevel: INFO
-report: report.html
-log: log.html
-output: output.xml
-
-# Include and exclude tags
-# include:
-#   - smoke
-# exclude:
-#   - slow
-
-# Set variables
 variable:
+  - BASE_URL:https://the-internet.herokuapp.com
+  - API_BASE_URL:https://jsonplaceholder.typicode.com
   - BROWSER:chrome
   - HEADLESS:False
-  - TIMEOUT:10s
+  - TIMEOUT:15s
+  - RUN_MOBILE_TESTS:false
+  - MOBILE_PLATFORM:android
+  - MOBILE_APPIUM_SERVER:http://127.0.0.1:4723
+  - MOBILE_STARTUP_LOCATOR:
+  - MOBILE_TIMEOUT:20s
+  - DB_TYPE:sqlite
+  - DB_NAME:results/test.db
 
-# Test data sources
+outputdir: results
+loglevel: INFO
+
 pythonpath:
   - .
   - tests/resources
-
-# Listener for additional reporting
-# listener: listeners.TestListener
-
-# Parallel execution with pabot (uncomment if using pabot)
-# processes: 4

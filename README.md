@@ -1,381 +1,334 @@
-# Robot Framework Project
+# Robot Framework QA Template
 
-A comprehensive Robot Framework test automation project with support for web UI testing, API testing, and database testing.
+[![Tests](https://github.com/your-org/robot_playground/actions/workflows/tests.yml/badge.svg)](https://github.com/your-org/robot_playground/actions/workflows/tests.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Robot Framework 7](https://img.shields.io/badge/Robot%20Framework-7.x-red.svg)](https://robotframework.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## Project Structure
+A lean, production-ready Robot Framework template for QA teams. Clone it, run the examples immediately against real public services, then swap in your own URLs and credentials.
 
-```
-robot_playground/
-├── requirements.txt          # Python dependencies
-├── robot.yaml               # Robot Framework configuration
-├── Makefile                 # Automation commands
-├── .env.example            # Environment variables template
-├── .gitignore              # Git ignore rules
-├── tests/
-│   ├── api/                # API test suites
-│   ├── gui/                # Web UI test suites
-│   ├── db/                 # Database test suites
-│   ├── data/               # Test data files
-│   └── resources/          # Shared keywords and libraries
-└── results/                # Test execution results (auto-generated)
-```
+Covers **API**, **Web UI (Browser Library / Playwright)**, **Database (SQLite → Postgres/MySQL/MongoDB)**, and opt-in **Mobile (AppiumLibrary)** testing. OWASP ZAP security scanning is handled by the CI/CD pipeline as a passive proxy — no dedicated security test files to maintain.
+
+---
 
 ## Getting Started
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- Chrome/Firefox browser (for GUI tests)
-- Make (optional, for using Makefile commands)
+| Tool | Version |
+| --- | --- |
+| Python | 3.10+ (3.12 recommended) |
+| Chrome | latest |
+| Make | any (optional) |
+| Appium 2 + device/emulator | only for `RUN_MOBILE_TESTS=true` |
 
-### Installation
+### Install
 
-1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/your-org/robot_playground.git
 cd robot_playground
-```
 
-2. Set up virtual environment and install dependencies:
-```bash
-make setup
-# OR manually:
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-rfbrowser init  # Initialize Browser library
+source venv/bin/activate        # Windows: venv\Scripts\activate
+
+make install                    # installs dependencies and Browser Library's Playwright runtime
+# If using pip directly: pip install -r requirements.txt && rfbrowser init
+cp .env.example .env            # edit if targeting your own application
+
+# (optional) activate pre-commit hooks
+pip install pre-commit && pre-commit install
 ```
 
-3. Copy environment configuration:
-```bash
-cp .env.example .env
-# Edit .env with your actual configuration values
-```
-
-## Running Tests
-
-### Using Makefile (Recommended)
+### Run the examples immediately
 
 ```bash
-# Run all tests
-make test
-
-# Run specific test types
-make test-api      # API tests only
-make test-gui      # GUI tests only
-make test-db       # Database tests only
-make test-security # Security tests only
-make test-smoke    # Smoke tests only
-
-# Run tests in parallel
-make test-parallel
-
-# Run tests with specific tags
-make test-tag      # Will prompt for tag name
-
-# Initialize Browser library (if needed)
-make init-browser
-
-# Database setup (choose one based on your database)
-make setup-db-postgres
-make setup-db-mysql
-make setup-db-mongodb
-
-# Security testing with ZAP
-make start-zap                # Instructions for starting ZAP
-make test-security-with-zap   # Run security tests with ZAP proxy
+make test          # all suites — API, GUI, DB all pass against public demo sites
+make test-smoke    # fast subset
+make serve         # open results at http://localhost:8000
 ```
 
-### Using Robot Framework directly
+The bundled examples work out of the box with no configuration:
+
+| Suite | Target | Auth |
+| --- | --- | --- |
+| `tests/api/` | [jsonplaceholder.typicode.com](https://jsonplaceholder.typicode.com) | none |
+| `tests/gui/` | [the-internet.herokuapp.com](https://the-internet.herokuapp.com) | tomsmith / SuperSecretPassword! |
+| `tests/db/` | SQLite (`results/test.db`) | none |
+| `tests/mobile/` | Appium Android/iOS target | skipped unless `RUN_MOBILE_TESTS=true` |
+
+---
+
+## Project Structure
+
+```
+robot_playground/
+├── .github/workflows/tests.yml   # CI: lint → audit → test matrix → ZAP passive scan
+├── tests/
+│   ├── api/
+│   │   └── user_api_tests.robot  # REST API examples (CRUD + edge cases)
+│   ├── gui/
+│   │   └── login_tests.robot     # Browser Library login / logout examples
+│   ├── db/
+│   │   └── database_tests.robot  # SQLite by default; swap DB_TYPE for real DBs
+│   ├── mobile/
+│   │   └── appium_smoke_tests.robot # Appium starter suite, opt-in by env
+│   ├── resources/
+│   │   ├── common.robot          # Shared keywords: browser, API session, DB
+│   │   ├── mobile.robot          # Shared AppiumLibrary keywords and capabilities
+│   │   ├── TestUtils.py          # Timestamps, JSON comparison, data generation
+│   │   └── DatabaseUtils.py      # SQLite / Postgres / MySQL / MongoDB abstraction
+│   └── data/
+│       └── test_data.json        # Static test data
+├── .env.example                  # Environment variable reference
+├── .pre-commit-config.yaml       # Robocop, Robotidy, pip-audit on commit
+├── .robocop                      # Robocop linting config
+├── .robotidy                     # Robotidy formatter config
+├── Makefile                      # Developer convenience commands
+├── requirements.txt              # Pinned dependencies
+└── robot.yaml                    # Default variable overrides
+```
+
+---
+
+## How to Use
+
+### Running tests
 
 ```bash
-# Run all tests
-robot --outputdir results tests/
+make test-api          # API tests
+make test-gui          # GUI tests (Chrome, headless optional)
+make test-db           # Database tests
+make test-mobile       # Appium tests (skips unless RUN_MOBILE_TESTS=true)
+make test-smoke        # smoke-tagged tests only
+make test-parallel     # parallel with pabot
+make test-rerun        # serial run with automatic rerunfailed merge
+make test-tag          # prompts for any tag
 
-# Run specific test suites
-robot --outputdir results tests/api/
-robot --outputdir results tests/gui/
-robot --outputdir results tests/db/
-robot --outputdir results tests/security/
-
-# Run tests with tags
-robot --outputdir results --include smoke tests/
-robot --outputdir results --exclude slow tests/
-robot --outputdir results --include database tests/
-robot --outputdir results --include security tests/
-
-# Run tests in parallel
-pabot --processes 4 --outputdir results tests/
+# Override variables inline
+robot --outputdir results --variable BROWSER:firefox tests/gui/
+robot --outputdir results --variable HEADLESS:True tests/
 ```
 
-## Configuration
+### Adding new tests
 
-### Environment Variables
+**API suite** — copy the pattern from `tests/api/user_api_tests.robot`:
 
-Copy `.env.example` to `.env` and configure:
+```robot
+*** Settings ***
+Resource    ../resources/common.robot
+Suite Setup      Create API Session
+Suite Teardown   Delete All Sessions
 
-- `BASE_URL`: Application base URL
-- `API_BASE_URL`: API endpoint base URL
-- `BROWSER`: Browser to use (chrome, firefox, safari)
-- `HEADLESS`: Run browser in headless mode (true/false)
-- Database connection settings (`DB_HOST`, `DB_PORT`, `DB_NAME`, etc.)
-- API keys and authentication tokens
-- `ZAP_PROXY`: OWASP ZAP proxy URL (leave empty to disable security testing)
-- `ZAP_API_KEY`: ZAP API key for security testing
+*** Test Cases ***
+My Endpoint Returns 200
+    [Tags]    api    smoke
+    ${r}=    GET On Session    api    /my-endpoint
+    Verify API Response    ${r}    200
+```
 
-### Robot Framework Configuration
+**GUI suite** — copy the pattern from `tests/gui/login_tests.robot`:
 
-The `robot.yaml` file contains default Robot Framework settings:
-- Output directory configuration
-- Default variables
-- Python path settings
-- Logging levels
+```robot
+*** Settings ***
+Resource     ../resources/common.robot
+Test Setup   Open Browser To Base URL
+Test Teardown    Take Screenshot On Failure
 
-## Test Data
+*** Test Cases ***
+Page Title Is Correct
+    [Tags]    gui    smoke
+    Title Should Be    My Page
+```
 
-Test data is stored in `tests/data/` directory:
-- `test_data.json`: Common test data in JSON format
-- Add environment-specific data files as needed
+**Database suite** — `DB_TYPE=sqlite` by default. Change to `postgresql` / `mysql` / `mongodb` via `.env` or `--variable DB_TYPE:postgresql`.
 
-## Database Testing
+**Mobile suite** — `tests/mobile/appium_smoke_tests.robot` imports `tests/resources/mobile.robot`.
+It is intentionally skipped unless `RUN_MOBILE_TESTS=true`, so new teams can keep CI
+fast while still having a ready Appium pattern.
 
-### Supported Databases
-
-The framework supports multiple database types:
-- **PostgreSQL** (default)
-- **MySQL/MariaDB**
-- **MongoDB**
-
-### Database Configuration
-
-Configure database connection in your `.env` file:
+Android example:
 
 ```bash
-# PostgreSQL
-DB_TYPE=postgresql
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=test_db
-DB_USER=test_user
-DB_PASSWORD=test_password
+appium --base-path /
 
-# MySQL
-DB_TYPE=mysql
-MYSQL_HOST=localhost
-MYSQL_PORT=3306
-MYSQL_DB=test_db
-MYSQL_USER=test_user
-MYSQL_PASSWORD=test_password
-
-# MongoDB
-DB_TYPE=mongodb
-MONGO_HOST=localhost
-MONGO_PORT=27017
-MONGO_DB=test_db
-MONGO_USER=test_user
-MONGO_PASSWORD=test_password
+RUN_MOBILE_TESTS=true \
+MOBILE_PLATFORM=android \
+MOBILE_APPIUM_SERVER=http://127.0.0.1:4723 \
+ANDROID_DEVICE_NAME="Android Emulator" \
+ANDROID_APP=/absolute/path/to/app-debug.apk \
+MOBILE_STARTUP_LOCATOR=accessibility_id=Home \
+make test-mobile
 ```
 
-### Database Test Examples
+iOS example:
 
 ```bash
-# Run all database tests
-make test-db
+appium --base-path /
 
-# Run specific database operations
-robot --outputdir results --include crud tests/db/
-robot --outputdir results --include transaction tests/db/
+RUN_MOBILE_TESTS=true \
+MOBILE_PLATFORM=ios \
+MOBILE_APPIUM_SERVER=http://127.0.0.1:4723 \
+IOS_DEVICE_NAME="iPhone 15" \
+IOS_APP=/absolute/path/to/MyApp.app \
+MOBILE_STARTUP_LOCATOR=accessibility_id=Home \
+make test-mobile
 ```
 
-## Security Testing with OWASP ZAP
+### Environment configuration
 
-### ZAP Integration
+Copy `.env.example` → `.env`. Key variables:
 
-The framework includes built-in OWASP ZAP integration for security testing:
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `BASE_URL` | `https://the-internet.herokuapp.com` | GUI test target |
+| `API_BASE_URL` | `https://jsonplaceholder.typicode.com` | API test target |
+| `BROWSER` | `chrome` | `chrome`, `firefox`, `edge` |
+| `HEADLESS` | `false` | `true` for CI / Docker |
+| `RUN_MOBILE_TESTS` | `false` | Set `true` only when an Appium server and device are ready |
+| `MOBILE_PLATFORM` | `android` | `android` or `ios` |
+| `MOBILE_APPIUM_SERVER` | `http://127.0.0.1:4723` | Appium server URL |
+| `MOBILE_STARTUP_LOCATOR` | *(empty)* | Optional locator that proves the app launched |
+| `DB_TYPE` | `sqlite` | `sqlite`, `postgresql`, `mysql`, `mongodb` |
+| `ZAP_PROXY` | *(empty)* | Set to `http://localhost:8080` for local ZAP scan |
 
-1. **Proxy Configuration**: Automatically configures browsers and API clients to use ZAP proxy
-2. **Spider Scanning**: Discovers application structure and endpoints
-3. **Active Scanning**: Performs security vulnerability testing
-4. **Report Generation**: Creates HTML and XML security reports
-5. **CI/CD Integration**: Automated security testing in GitHub Actions
-
-### ZAP Setup
-
-1. **Install OWASP ZAP**:
-   ```bash
-   # Using Docker (recommended for CI/CD)
-   docker run -d -p 8080:8080 owasp/zap2docker-stable zap-x.sh -daemon -host 0.0.0.0 -port 8080
-   
-   # Or install locally
-   # Download from https://owasp.org/www-project-zap/
-   ```
-
-2. **Configure Environment**:
-   ```bash
-   # In your .env file
-   ZAP_PROXY=http://localhost:8080
-   ZAP_API_KEY=your_zap_api_key_here
-   ENABLE_SECURITY_TESTS=true
-   ```
-
-3. **Run Security Tests**:
-   ```bash
-   # Start ZAP first
-   make start-zap
-   
-   # Run security tests
-   make test-security-with-zap
-   ```
-
-### Security Test Features
-
-- **Conditional Execution**: Tests automatically skip if ZAP proxy is not configured
-- **Comprehensive Scanning**: Spider scan + Active security scan
-- **Vulnerability Detection**: Automatically fails tests on high-risk vulnerabilities
-- **Multiple Report Formats**: HTML for viewing, XML for CI/CD processing
-- **Browser & API Coverage**: Tests both web UI and API endpoints through proxy
-
-## Custom Libraries
-
-### TestUtils.py
-
-Custom Python library with utility keywords:
-- `Get Current Timestamp`: Generate ISO timestamp
-- `Generate Test Data`: Create test data (emails, names, etc.)
-- `Load Json Test Data`: Load test data from JSON files
-- `Compare Json Objects`: Compare JSON with optional key exclusion
-
-## Code Quality
-
-### Linting and Formatting
-
-```bash
-# Run linting
-make lint
-robocop tests/
-
-# Format code
-make format
-robotidy tests/
-```
-
-### Static Analysis Tools
-
-The project includes:
-- **Robocop**: Static code analysis for Robot Framework
-- **Robot Tidy**: Code formatter for Robot Framework
-- **Robot Metrics**: Enhanced test reporting
-
-## Reporting
-
-### Generate Reports
-
-```bash
-# Generate enhanced reports
-make report
-
-# Serve results on local web server
-make serve
-# Then visit http://localhost:8000
-```
-
-### Report Files
-
-After test execution, find reports in `results/` directory:
-- `report.html`: Test execution report
-- `log.html`: Detailed test log
-- `output.xml`: XML output for CI/CD integration
-
-## CI/CD Integration
-
-### GitHub Actions Example
-
-```yaml
-name: Robot Framework Tests
-
-on: [push, pull_request]
-
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.9'
-    
-    - name: Install dependencies
-      run: make ci-setup
-    
-    - name: Run tests
-      run: make ci-test
-    
-    - name: Upload test results
-      uses: actions/upload-artifact@v2
-      if: always()
-      with:
-        name: test-results
-        path: results/
-```
+---
 
 ## Best Practices
 
-### Test Organization
+### Test design
 
-1. **Separate test types**: Keep API, GUI, and DB tests in separate directories
-2. **Use tags**: Tag tests by type (smoke, regression, api, gui)
-3. **Shared resources**: Put common keywords in `tests/resources/`
-4. **Test data**: Store test data in `tests/data/` directory
+1. **One behaviour per test.** Split "login and verify profile" into two tests.
+2. **Independent tests.** Never rely on a prior test having run. Use `Suite Setup` to build required state.
+3. **Use IF/ELSE and BREAK** — not the legacy `Run Keyword If` and `Exit For Loop If`:
 
-### Keyword Design
+   ```robot
+   # Good — RF 5+ syntax
+   IF    '${ENV}' == 'staging'
+       Skip    Not running on staging
+   END
 
-1. **Single responsibility**: Each keyword should do one thing
-2. **Meaningful names**: Use descriptive keyword names
-3. **Documentation**: Document all custom keywords
-4. **Error handling**: Include proper error handling and logging
+   FOR    ${i}    IN RANGE    10
+       ${r}=    GET On Session    api    /status    expected_status=any
+       IF    '${r.status_code}' == '200'    BREAK
+   END
+   ```
 
-### Maintenance
+4. **Use TRY/EXCEPT** only for genuinely expected exceptions, not flow control.
+
+### Keyword design
+
+- **Single responsibility** — one keyword does one thing.
+- **Descriptive names** — read like a sentence: `Verify User Cannot Access Admin Panel`.
+- **Arguments over hardcoding** — pass selectors, URLs, timeouts as arguments with defaults.
+- **Short keywords** — if a keyword exceeds ~10 steps, decompose it (Robocop enforces this).
+
+### Tags
+
+Use a consistent layered strategy:
+
+| Layer | Examples |
+| --- | --- |
+| Type | `api` `gui` `database` `mobile` |
+| Priority | `smoke` `regression` |
+| Operation | `get` `post` `crud` `login` |
+| Polarity | `positive` `negative` |
 
 ```bash
-# Clean old results
-make clean
-
-# Update dependencies
-pip install --upgrade -r requirements.txt
-
-# Check for security vulnerabilities
-pip audit
+robot --include smoke tests/          # fast CI gate
+robot --include regression tests/     # full run
+robot --include mobile tests/         # Appium suite; skips unless RUN_MOBILE_TESTS=true
+robot --exclude wip tests/            # skip in-progress tests
 ```
 
-## Troubleshooting
+---
 
-### Common Issues
+## Security Testing (ZAP)
 
-1. **Browser driver issues**: Ensure ChromeDriver/GeckoDriver is in PATH
-2. **Browser library not initialized**: Run `rfbrowser init` after installing dependencies
-3. **Import errors**: Check Python path and virtual environment
-4. **Timeout issues**: Adjust timeout values in configuration
-5. **SSL errors**: Configure SSL settings for API tests
+Security scanning is handled entirely in CI — no dedicated test files to write or maintain.
 
-### Debug Mode
+**How it works:**
 
-Run tests with debug logging:
+1. ZAP starts as a daemon in the `security-zap` CI job.
+2. The regular API and GUI test suites run through ZAP as a **passive proxy**.
+3. ZAP observes all HTTP traffic and generates a finding report.
+4. The job fails if any HIGH-risk finding is detected.
+
+This means every new API or GUI test you write automatically increases the ZAP scan surface.
+
+**Run locally:**
+
+```bash
+# Start ZAP
+docker run -d -p 8080:8080 ghcr.io/zaproxy/zaproxy:stable \
+  zap-x.sh -daemon -host 0.0.0.0 -port 8080
+
+# Run tests through ZAP
+make test-zap
+
+# View the report
+open results/zap-report.html   # generated by the ZAP daemon API
+```
+
+---
+
+## How to Maintain
+
+### Update dependencies
+
+```bash
+pip list --outdated             # see what's behind
+pip-audit -r requirements.txt  # check for known CVEs
+pre-commit autoupdate           # bump pre-commit hook revisions
+```
+
+### Code quality
+
+```bash
+make lint      # robocop static analysis
+make format    # robotidy auto-format
+make audit     # pip-audit vulnerability check
+make check     # all three
+```
+
+### Debugging
+
 ```bash
 robot --loglevel DEBUG --outputdir results tests/
+
+# Run through the shared runner: pabot first, rerun failed tests, merge output
+./scripts/run_robot_tests.sh tests/
+
+# Re-run only the tests that failed last time by hand, if needed
+robot --rerunfailed results/output.xml --outputdir results/rerun tests/
+rebot --merge --outputdir results results/output.xml results/rerun/output.xml
 ```
 
-## Contributing
+Failure screenshots are written under `results/screenshots/` and
+`results/rerun/screenshots/`, then uploaded by CI with the Robot reports.
+The shared runner also imports `results/output.xml` into RobotDashboard and
+writes `results/dashboard.html` plus `results/robot_results.db`.
 
-1. Follow Robot Framework naming conventions
-2. Add tests for new features
-3. Update documentation
-4. Run linting before submitting PRs
+---
+
+## CI/CD Pipeline
+
+| Job | Trigger | What it does |
+| --- | --- | --- |
+| `lint` | All pushes / PRs | Robocop + Robotidy check |
+| `audit` | All pushes / PRs | `pip-audit` dependency scan |
+| `test` | After `lint` | Full suite on Python 3.10–3.12 via `pabot` (`USE_PABOT=true`, `PABOT_PROCESSES=4`), then `rerunfailed` merge and RobotDashboard generation |
+| `security-zap` | `main` + nightly | Passive ZAP scan through API + GUI suites via the same pabot runner |
+
+---
 
 ## Resources
 
 - [Robot Framework User Guide](https://robotframework.org/robotframework/latest/RobotFrameworkUserGuide.html)
-- [SeleniumLibrary Documentation](https://robotframework.org/SeleniumLibrary/)
-- [RequestsLibrary Documentation](https://marketsquare.github.io/robotframework-requests/)
-- [Robot Framework Best Practices](https://github.com/robotframework/HowToWriteGoodTestCases)
+- [Browser Library](https://github.com/MarketSquare/robotframework-browser)
+- [RequestsLibrary](https://github.com/MarketSquare/robotframework-requests)
+- [DatabaseLibrary](https://github.com/MarketSquare/Robotframework-Database-Library)
+- [RobotDashboard](https://marketsquare.github.io/robotframework-dashboard/)
+- [AppiumLibrary](https://github.com/serhatbolsu/robotframework-appiumlibrary)
+- [Robocop](https://robocop.readthedocs.io/) · [Robotidy](https://robotidy.readthedocs.io/)
+- [How to Write Good Test Cases](https://github.com/robotframework/HowToWriteGoodTestCases)
+- [CHANGELOG](CHANGELOG.md) · [CONTRIBUTING](CONTRIBUTING.md)

@@ -1,0 +1,29 @@
+# Pre-commit hooks for Robot Framework code quality
+# Run `pre-commit install` once to activate, then hooks run automatically on git commit.
+# Update pinned revisions: pre-commit autoupdate
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+      - id: check-merge-conflict
+
+  - repo: https://github.com/MarketSquare/robotframework-tidy
+    rev: 4.18.0
+    hooks:
+      - id: robotidy
+        args: ["tests/"]
+
+  - repo: https://github.com/MarketSquare/robotframework-robocop
+    rev: v5.6.0
+    hooks:
+      - id: robocop
+        args: ["tests/"]
+
+  - repo: https://github.com/pypa/pip-audit
+    rev: v2.8.0
+    hooks:
+      - id: pip-audit
+        args: ["-r", "requirements.txt"]

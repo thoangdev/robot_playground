@@ -1,38 +1,7 @@
-# Robot Framework Robocop configuration file
-# This file configures the static code analysis tool for Robot Framework
+# Robocop configuration — argument-file format (one flag per line).
+# Docs: https://robocop.readthedocs.io/en/stable/configuration.html
 
-[tool:robocop]
-# Configure paths
-exclude = results,logs,__pycache__
-include = tests
-
-# Configure reports
-reports = 
-    rules_by_id
-    return_status
-
-# Severity levels to check
-severity = W,E,I
-
-# Configure specific rules
-configure = 
-    line-too-long:line_length:120
-    too-many-calls-in-keyword:calls_limit:15
-    keyword-name-is-reserved:reserved_names:None
-
-# Disable specific rules (uncomment as needed)
-# disable = 
-#     line-too-long
-#     missing-doc-suite
-#     missing-doc-test-case
-#     missing-doc-keyword
-#     todo-in-comment
-
-# External rules (if using custom rules)
-# ext-rules = custom_rules.py
-
-# Threshold for return codes
-threshold = 
-    error = 0
-    warning = 0
-    info = -1
+--reports=rules_by_id,return_status
+--configure=line-too-long:line_length:120
+--configure=too-many-calls-in-keyword:max_calls:15
+--threshold=WARNING

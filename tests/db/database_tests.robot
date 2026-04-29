@@ -1,287 +1,145 @@
 *** Settings ***
-Documentation    Simple database test suite demonstrating database testing patterns
-Resource         ../resources/common.robot
-Library          ../resources/TestUtils.py
-Library          ../resources/DatabaseUtils.py
-Suite Setup      Database Suite Setup
-Suite Teardown   Database Suite Teardown
-Test Setup       Database Test Setup
+Documentation    Database test suite — defaults to SQLite (zero infrastructure required).
+...    Set DB_TYPE=postgresql / mysql / mongodb and supply DB_* variables in .env
+...    to run against a real database server.
+
+Resource    ../resources/common.robot
+Library    ../resources/TestUtils.py
+Library    ../resources/DatabaseUtils.py
+
+Suite Setup    Database Suite Setup
+Suite Teardown    Database Suite Teardown
 Test Teardown    Database Test Cleanup
 
+
 *** Variables ***
-${TEST_TABLE}        users
-${TEST_USER_DATA}    {"name": "Test User", "email": "testuser@example.com", "status": "active"}
-${UPDATE_USER_DATA}  {"name": "Updated User", "email": "updated@example.com", "status": "inactive"}
+${TEST_TABLE}    test_users
+
 
 *** Test Cases ***
 Create User Record
-    [Documentation]    Test creating a new user record in the database
-    [Tags]             database    crud    positive
-    
-    # Insert test user data
-    ${test_data}=    Evaluate    ${TEST_USER_DATA}
-    Insert Database Test Data    ${TEST_TABLE}    ${test_data}
-    
-    # Verify the record was created
+    [Documentation]    INSERT a row and verify it is retrievable
+    [Tags]    database    smoke    crud    positive
+
+    ${data}=    Create Dictionary
+    ...    name=Test User
+    ...    email=testuser@example.com
+    ...    status=active
+
+    Insert Database Test Data    ${TEST_TABLE}    ${data}
     Verify Database Record Count    ${TEST_TABLE}    1    email='testuser@example.com'
-    
-    # Query and verify the data
-    ${query_result}=    Query User By Email    testuser@example.com
-    Should Not Be Empty    ${query_result}
-    Verify User Data    ${query_result}    ${test_data}
+
+    ${rows}=    Execute Database Query
+    ...    SELECT name, email, status FROM ${TEST_TABLE} WHERE email='testuser@example.com'
+    Should Not Be Empty    ${rows}
+    Should Be Equal    ${rows}[0][0]    Test User
+    Should Be Equal    ${rows}[0][1]    testuser@example.com
 
 Update User Record
-    [Documentation]    Test updating an existing user record
-    [Tags]             database    crud    positive
-    [Setup]            Create Test User
-    
-    # Update the user record
-    ${update_data}=    Evaluate    ${UPDATE_USER_DATA}
-    Update User By Email    testuser@example.com    ${update_data}
-    
-    # Verify the record was updated
-    ${query_result}=    Query User By Email    updated@example.com
-    Should Not Be Empty    ${query_result}
-    Verify User Data    ${query_result}    ${update_data}
-    
-    # Verify old email doesn't exist
-    ${old_result}=    Query User By Email    testuser@example.com
-    Should Be Empty    ${old_result}
+    [Documentation]    UPDATE a row and verify the change is reflected
+    [Tags]    database    crud    positive
+    [Setup]    Insert Test User
+
+    Execute Database Query
+    ...    UPDATE ${TEST_TABLE} SET name='Updated User', email='updated@example.com' WHERE email='testuser@example.com'
+    Verify Database Record Count    ${TEST_TABLE}    0    email='testuser@example.com'
+    Verify Database Record Count    ${TEST_TABLE}    1    email='updated@example.com'
+
+    [Teardown]    Execute Database Query    DELETE FROM ${TEST_TABLE} WHERE email='updated@example.com'
 
 Delete User Record
-    [Documentation]    Test deleting a user record from the database
-    [Tags]             database    crud    positive
-    [Setup]            Create Test User
-    
-    # Verify user exists before deletion
+    [Documentation]    DELETE a row and verify it is gone
+    [Tags]    database    crud    positive
+    [Setup]    Insert Test User
+
     Verify Database Record Count    ${TEST_TABLE}    1    email='testuser@example.com'
-    
-    # Delete the user record
     Clean Database Test Data    ${TEST_TABLE}    email='testuser@example.com'
-    
-    # Verify the record was deleted
     Verify Database Record Count    ${TEST_TABLE}    0    email='testuser@example.com'
 
-Query Multiple Users
-    [Documentation]    Test querying multiple user records
-    [Tags]             database    query    positive
-    
-    # Create multiple test users
-    ${user1}=    Create Dictionary    name=User One    email=user1@example.com    status=active
-    ${user2}=    Create Dictionary    name=User Two    email=user2@example.com    status=active
-    ${user3}=    Create Dictionary    name=User Three    email=user3@example.com    status=inactive
-    
-    Insert Database Test Data    ${TEST_TABLE}    ${user1}
-    Insert Database Test Data    ${TEST_TABLE}    ${user2}
-    Insert Database Test Data    ${TEST_TABLE}    ${user3}
-    
-    # Query active users
-    ${active_users}=    Query Users By Status    active
-    Length Should Be    ${active_users}    2
-    
-    # Query inactive users
-    ${inactive_users}=    Query Users By Status    inactive
-    Length Should Be    ${inactive_users}    1
-    
-    # Query all test users
-    Verify Database Record Count    ${TEST_TABLE}    3    email LIKE '%@example.com'
+Query Multiple Records
+    [Documentation]    INSERT several rows then filter by status
+    [Tags]    database    query    positive
 
-Database Transaction Test
-    [Documentation]    Test database transaction handling
-    [Tags]             database    transaction    positive
-    
-    # Get initial count
-    ${initial_count}=    Get Total User Count
-    
-    # Start a transaction and insert multiple records
-    ${users_data}=    Create List
-    ...    {"name": "Transaction User 1", "email": "txn1@example.com", "status": "active"}
-    ...    {"name": "Transaction User 2", "email": "txn2@example.com", "status": "active"}
-    
-    Insert Multiple Users    ${users_data}
-    
-    # Verify all records were inserted
-    ${final_count}=    Get Total User Count
-    ${expected_count}=    Evaluate    ${initial_count} + 2
-    Should Be Equal As Numbers    ${final_count}    ${expected_count}
+    ${alice}=    Create Dictionary    name=Alice    email=alice@example.com    status=active
+    ${bob}=    Create Dictionary    name=Bob    email=bob@example.com    status=active
+    ${active_users}=    Create List    ${alice}    ${bob}
+    FOR    ${row}    IN    @{active_users}
+        Insert Database Test Data    ${TEST_TABLE}    ${row}
+    END
 
-Database Connection Test
-    [Documentation]    Test database connection and basic operations
-    [Tags]             database    connection    smoke
-    
-    # Test basic connection
-    ${connection_status}=    Test Database Connection
-    Should Be True    ${connection_status}
-    
-    # Test simple query
-    ${result}=    Execute Simple Query
+    ${data}=    Create Dictionary    name=Charlie    email=charlie@example.com    status=inactive
+    Insert Database Test Data    ${TEST_TABLE}    ${data}
+
+    Verify Database Record Count    ${TEST_TABLE}    2    status='active'
+    Verify Database Record Count    ${TEST_TABLE}    1    status='inactive'
+    Verify Database Record Count    ${TEST_TABLE}    3
+
+Database Connection Smoke Test
+    [Documentation]    Basic connectivity check — SELECT 1 must succeed
+    [Tags]    database    smoke    connection
+
+    ${result}=    Execute Database Query    SELECT 1 AS connection_ok
     Should Not Be Empty    ${result}
-    
-    Log    Database connection test passed successfully
+    Log    Database connection confirmed
+
 
 *** Keywords ***
 Database Suite Setup
-    [Documentation]    Setup database connection and test environment
-    Setup Database Connection
-    Create Test Table If Not Exists
+    [Documentation]    Connect and create the test table; skip the entire suite on failure.
+    TRY
+        Setup Database Connection
+        Create Test Table
+    EXCEPT    AS    ${err}
+        Log    Database unavailable — skipping suite: ${err}    WARN
+        Skip    Database not available: ${err}
+    END
 
 Database Suite Teardown
-    [Documentation]    Cleanup database connection
-    Cleanup All Test Data
+    [Documentation]    Drop the test table and disconnect.
+    TRY
+        Execute Database Query    DROP TABLE IF EXISTS ${TEST_TABLE}
+    EXCEPT    AS    ${err}
+        Log    Could not drop table: ${err}    WARN
+    END
     Cleanup Database Connection
 
-Database Test Setup
-    [Documentation]    Setup for individual database tests
-    Log    Starting database test case
-
 Database Test Cleanup
-    [Documentation]    Cleanup after individual database tests
-    Clean Database Test Data    ${TEST_TABLE}    email LIKE '%@example.com'
-
-Create Test User
-    [Documentation]    Helper keyword to create a test user
-    ${test_data}=    Evaluate    ${TEST_USER_DATA}
-    Insert Database Test Data    ${TEST_TABLE}    ${test_data}
-
-Query User By Email
-    [Documentation]    Query user record by email address
-    [Arguments]        ${email}
-    
-    IF    '${DB_TYPE}' == 'mongodb'
-        ${query}=    Create Dictionary    email=${email}
-        ${result}=    Execute Database Query    ${query}    ${TEST_TABLE}
-    ELSE
-        ${query}=    Set Variable    SELECT * FROM ${TEST_TABLE} WHERE email = '${email}'
-        ${result}=    Execute Database Query    ${query}
-    END
-    
-    RETURN    ${result}
-
-Update User By Email
-    [Documentation]    Update user record by email address
-    [Arguments]        ${old_email}    ${new_data}
-    
-    IF    '${DB_TYPE}' == 'mongodb'
-        # MongoDB update operation would go here
-        Log    MongoDB update not implemented in this simple example    WARN
-    ELSE
-        ${name}=    Get From Dictionary    ${new_data}    name
-        ${email}=    Get From Dictionary    ${new_data}    email
-        ${status}=    Get From Dictionary    ${new_data}    status
-        ${query}=    Set Variable    UPDATE ${TEST_TABLE} SET name='${name}', email='${email}', status='${status}' WHERE email='${old_email}'
-        Execute Database Query    ${query}
-    END
-
-Query Users By Status
-    [Documentation]    Query users by status
-    [Arguments]        ${status}
-    
-    IF    '${DB_TYPE}' == 'mongodb'
-        ${query}=    Create Dictionary    status=${status}
-        ${result}=    Execute Database Query    ${query}    ${TEST_TABLE}
-    ELSE
-        ${query}=    Set Variable    SELECT * FROM ${TEST_TABLE} WHERE status = '${status}'
-        ${result}=    Execute Database Query    ${query}
-    END
-    
-    RETURN    ${result}
-
-Get Total User Count
-    [Documentation]    Get total count of users in the table
-    
-    IF    '${DB_TYPE}' == 'mongodb'
-        ${query}=    Create Dictionary
-        ${result}=    Execute Database Query    ${query}    ${TEST_TABLE}
-        ${count}=    Get Length    ${result}
-    ELSE
-        ${query}=    Set Variable    SELECT COUNT(*) FROM ${TEST_TABLE}
-        ${result}=    Execute Database Query    ${query}
-        ${count}=    Set Variable    ${result[0][0]}
-    END
-    
-    RETURN    ${count}
-
-Insert Multiple Users
-    [Documentation]    Insert multiple user records
-    [Arguments]        ${users_list}
-    
-    FOR    ${user_data}    IN    @{users_list}
-        ${user_dict}=    Evaluate    ${user_data}
-        Insert Database Test Data    ${TEST_TABLE}    ${user_dict}
-    END
-
-Test Database Connection
-    [Documentation]    Test basic database connectivity
+    [Documentation]    Remove all rows written during the test.
     TRY
-        ${result}=    Execute Simple Query
-        RETURN    ${True}
-    EXCEPT
-        RETURN    ${False}
+        Clean Database Test Data    ${TEST_TABLE}    1=1
+    EXCEPT    AS    ${err}
+        Log    Cleanup warning: ${err}    DEBUG
     END
 
-Execute Simple Query
-    [Documentation]    Execute a simple query to test connection
-    
-    IF    '${DB_TYPE}' == 'mongodb'
-        ${query}=    Create Dictionary
-        ${result}=    Execute Database Query    ${query}    ${TEST_TABLE}
-    ELSE
-        ${query}=    Set Variable    SELECT 1 as test_connection
-        ${result}=    Execute Database Query    ${query}
-    END
-    
-    RETURN    ${result}
+Insert Test User
+    [Documentation]    Helper: insert a known user record before a test.
+    ${data}=    Create Dictionary    name=Test User    email=testuser@example.com    status=active
+    Insert Database Test Data    ${TEST_TABLE}    ${data}
 
-Create Test Table If Not Exists
-    [Documentation]    Create test table if it doesn't exist
-    
-    IF    '${DB_TYPE}' == 'postgresql'
-        ${create_query}=    Set Variable    
+Create Test Table
+    [Documentation]    CREATE TABLE IF NOT EXISTS for the DB_TYPE in use.
+    IF    '${DB_TYPE}' == 'sqlite' or '${DB_TYPE}' == 'postgresql'
+        ${create_table_sql}=    Catenate
+        ...    SEPARATOR=${SPACE}
         ...    CREATE TABLE IF NOT EXISTS ${TEST_TABLE} (
-        ...        id SERIAL PRIMARY KEY,
-        ...        name VARCHAR(100) NOT NULL,
-        ...        email VARCHAR(100) UNIQUE NOT NULL,
-        ...        status VARCHAR(20) DEFAULT 'active',
-        ...        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ...    id INTEGER PRIMARY KEY,
+        ...    name TEXT NOT NULL,
+        ...    email TEXT UNIQUE NOT NULL,
+        ...    status TEXT DEFAULT 'active'
         ...    )
-        Execute Database Query    ${create_query}
+        Execute Database Query    ${create_table_sql}
     ELSE IF    '${DB_TYPE}' == 'mysql'
-        ${create_query}=    Set Variable    
+        ${create_table_sql}=    Catenate
+        ...    SEPARATOR=${SPACE}
         ...    CREATE TABLE IF NOT EXISTS ${TEST_TABLE} (
-        ...        id INT AUTO_INCREMENT PRIMARY KEY,
-        ...        name VARCHAR(100) NOT NULL,
-        ...        email VARCHAR(100) UNIQUE NOT NULL,
-        ...        status VARCHAR(20) DEFAULT 'active',
-        ...        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ...    id INT AUTO_INCREMENT PRIMARY KEY,
+        ...    name VARCHAR(100) NOT NULL,
+        ...    email VARCHAR(100) UNIQUE NOT NULL,
+        ...    status VARCHAR(20) DEFAULT 'active'
         ...    )
-        Execute Database Query    ${create_query}
+        Execute Database Query    ${create_table_sql}
     ELSE IF    '${DB_TYPE}' == 'mongodb'
-        Log    MongoDB collections are created automatically    INFO
+        Log    MongoDB creates collections on first write — no explicit CREATE needed    INFO
     ELSE
-        Log    Table creation not supported for database type: ${DB_TYPE}    WARN
-    END
-
-Verify User Data
-    [Documentation]    Verify user data matches expected values
-    [Arguments]        ${actual_data}    ${expected_data}
-    
-    IF    '${DB_TYPE}' == 'mongodb'
-        ${actual_user}=    Set Variable    ${actual_data[0]}
-        Should Be Equal    ${actual_user['name']}    ${expected_data['name']}
-        Should Be Equal    ${actual_user['email']}    ${expected_data['email']}
-        Should Be Equal    ${actual_user['status']}    ${expected_data['status']}
-    ELSE
-        ${actual_user}=    Set Variable    ${actual_data[0]}
-        Should Be Equal    ${actual_user[1]}    ${expected_data['name']}    # name column
-        Should Be Equal    ${actual_user[2]}    ${expected_data['email']}   # email column
-        Should Be Equal    ${actual_user[3]}    ${expected_data['status']}  # status column
-    END
-
-Cleanup All Test Data
-    [Documentation]    Clean up all test data from the database
-    TRY
-        Clean Database Test Data    ${TEST_TABLE}    email LIKE '%@example.com'
-        Log    Test data cleanup completed successfully
-    EXCEPT    AS    ${error}
-        Log    Test data cleanup failed: ${error}    WARN
+        Fail    Unsupported DB_TYPE: ${DB_TYPE}
     END

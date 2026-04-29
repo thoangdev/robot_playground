@@ -1,137 +1,111 @@
-"""
-Common Python keywords and utilities for Robot Framework tests
-"""
+"""Common Python keywords and utilities for Robot Framework tests."""
 
-import os
 import json
 import time
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Optional
+
 from robot.api.deco import keyword
 from robot.libraries.BuiltIn import BuiltIn
 
 
 class TestUtils:
-    """Custom Python library for Robot Framework with utility keywords"""
-    
-    ROBOT_LIBRARY_SCOPE = 'GLOBAL'
-    
-    def __init__(self):
+    """Custom Python library for Robot Framework with utility keywords."""
+
+    ROBOT_LIBRARY_SCOPE = "GLOBAL"
+
+    def __init__(self) -> None:
         self.builtin = BuiltIn()
-    
+
     @keyword
-    def get_current_timestamp(self):
-        """Get current timestamp in ISO format"""
-        return datetime.now().isoformat()
-    
+    def get_current_timestamp(self) -> str:
+        """Return current UTC timestamp in ISO-8601 format."""
+        return datetime.utcnow().isoformat()
+
     @keyword
-    def wait_for_condition(self, condition_keyword, timeout=30, interval=1):
+    def wait_for_condition(
+        self,
+        condition_keyword: str,
+        timeout: int = 30,
+        interval: int = 1,
+    ) -> bool:
+        """Poll *condition_keyword* until it returns truthy or *timeout* seconds elapses.
+
+        Raises ``AssertionError`` when the timeout is reached without success.
         """
-        Wait for a condition to be true
-        
-        Args:
-            condition_keyword: Robot Framework keyword that returns True/False
-            timeout: Maximum time to wait in seconds
-            interval: Time between checks in seconds
-        """
-        start_time = time.time()
-        while time.time() - start_time < timeout:
+        deadline = time.time() + float(timeout)
+        while time.time() < deadline:
             try:
-                result = self.builtin.run_keyword(condition_keyword)
-                if result:
+                if self.builtin.run_keyword(condition_keyword):
                     return True
-            except Exception:
+            except Exception:  # noqa: BLE001
                 pass
-            time.sleep(interval)
-        
-        raise AssertionError(f"Condition '{condition_keyword}' was not met within {timeout} seconds")
-    
+            time.sleep(float(interval))
+        raise AssertionError(
+            f"Condition '{condition_keyword}' was not met within {timeout} seconds"
+        )
+
     @keyword
-    def generate_test_data(self, data_type="email"):
-        """
-        Generate test data based on type
-        
-        Args:
-            data_type: Type of data to generate (email, name, phone, etc.)
-        """
-        timestamp = int(time.time())
-        
-        data_generators = {
-            'email': f'test_{timestamp}@example.com',
-            'name': f'Test User {timestamp}',
-            'phone': f'+1555{timestamp % 10000:04d}',
-            'username': f'user_{timestamp}',
-            'password': f'Pass_{timestamp}!'
+    def generate_test_data(self, data_type: str = "email") -> str:
+        """Generate a unique test value of *data_type* (email, name, phone, username, password)."""
+        ts = int(time.time())
+        generators: dict[str, str] = {
+            "email": f"test_{ts}@example.com",
+            "name": f"Test User {ts}",
+            "phone": f"+1555{ts % 10_000:04d}",
+            "username": f"user_{ts}",
+            "password": f"Pass_{ts}!",
         }
-        
-        return data_generators.get(data_type, f'test_data_{timestamp}')
-    
+        return generators.get(data_type, f"test_data_{ts}")
+
     @keyword
-    def load_json_test_data(self, file_path):
-        """
-        Load test data from JSON file
-        
-        Args:
-            file_path: Path to JSON file relative to tests/data/
-        """
-        full_path = os.path.join('tests', 'data', file_path)
-        
-        if not os.path.exists(full_path):
+    def load_json_test_data(self, file_path: str) -> Any:
+        """Load and return parsed JSON from *file_path* (relative to ``tests/data/``)."""
+        full_path = Path("tests") / "data" / file_path
+        if not full_path.exists():
             raise FileNotFoundError(f"Test data file not found: {full_path}")
-        
-        with open(full_path, 'r') as file:
-            return json.load(file)
-    
+        with full_path.open(encoding="utf-8") as fh:
+            return json.load(fh)
+
     @keyword
-    def save_test_results(self, data, filename):
-        """
-        Save test results to file
-        
-        Args:
-            data: Data to save
-            filename: Name of file to save to
-        """
-        results_dir = 'results'
-        os.makedirs(results_dir, exist_ok=True)
-        
-        file_path = os.path.join(results_dir, filename)
-        
-        if isinstance(data, (dict, list)):
-            with open(file_path, 'w') as file:
-                json.dump(data, file, indent=2)
-        else:
-            with open(file_path, 'w') as file:
-                file.write(str(data))
-        
-        return file_path
-    
+    def save_test_results(self, data: Any, filename: str) -> str:
+        """Persist *data* to ``results/<filename>`` and return the absolute path."""
+        file_path = Path("results") / filename
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        with file_path.open("w", encoding="utf-8") as fh:
+            if isinstance(data, (dict, list)):
+                json.dump(data, fh, indent=2)
+            else:
+                fh.write(str(data))
+        return str(file_path)
+
     @keyword
-    def compare_json_objects(self, actual, expected, ignore_keys=None):
+    def compare_json_objects(
+        self,
+        actual: Any,
+        expected: Any,
+        ignore_keys: Optional[list[str]] = None,
+    ) -> bool:
+        """Assert that *actual* and *expected* are equal, optionally skipping *ignore_keys*.
+
+        Raises ``AssertionError`` with a diff on mismatch.
         """
-        Compare two JSON objects, optionally ignoring certain keys
-        
-        Args:
-            actual: Actual JSON object
-            expected: Expected JSON object
-            ignore_keys: List of keys to ignore in comparison
-        """
-        if ignore_keys is None:
-            ignore_keys = []
-        
-        def remove_ignored_keys(obj):
+        ignore_keys = ignore_keys or []
+
+        def _strip(obj: Any) -> Any:
             if isinstance(obj, dict):
-                return {k: remove_ignored_keys(v) for k, v in obj.items() if k not in ignore_keys}
-            elif isinstance(obj, list):
-                return [remove_ignored_keys(item) for item in obj]
+                return {k: _strip(v) for k, v in obj.items() if k not in ignore_keys}
+            if isinstance(obj, list):
+                return [_strip(i) for i in obj]
             return obj
-        
-        cleaned_actual = remove_ignored_keys(actual)
-        cleaned_expected = remove_ignored_keys(expected)
-        
+
+        cleaned_actual = _strip(actual)
+        cleaned_expected = _strip(expected)
         if cleaned_actual != cleaned_expected:
             raise AssertionError(
-                f"JSON objects do not match:\n"
-                f"Actual: {json.dumps(cleaned_actual, indent=2)}\n"
+                "JSON objects do not match:\n"
+                f"Actual:   {json.dumps(cleaned_actual, indent=2)}\n"
                 f"Expected: {json.dumps(cleaned_expected, indent=2)}"
             )
-        
         return True

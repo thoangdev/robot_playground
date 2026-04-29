@@ -1,137 +1,158 @@
 *** Settings ***
-Documentation    Common keywords and variables for all test suites
-Library          SeleniumLibrary
-Library          RequestsLibrary
-Library          DatabaseLibrary
-Library          Collections
-Library          String
-Library          OperatingSystem
-Library          ../resources/TestUtils.py
-Library          ../resources/DatabaseUtils.py
-Library          ../resources/SecurityUtils.py
+Documentation    Shared keywords and variables for all test suites
+
+Library    OperatingSystem
+Library    String
+Library    Browser
+Library    RequestsLibrary
+Library    DatabaseLibrary
+Library    ../resources/TestUtils.py
+Library    ../resources/DatabaseUtils.py
+
 
 *** Variables ***
-# Application URLs
-${BASE_URL}          https://example.com
-${API_BASE_URL}      https://api.example.com
+# ── Application URLs ─────────────────────────────────────────────────────────
+# Public demo sites used by the bundled example suites.
+# Override via --variable or .env when testing your own application.
+${BASE_URL}    https://the-internet.herokuapp.com
+${API_BASE_URL}    https://jsonplaceholder.typicode.com
 
-# Browser settings
-${BROWSER}           chrome
-${HEADLESS}          False
-${TIMEOUT}           10s
-${IMPLICIT_WAIT}     5s
+# ── Browser settings ─────────────────────────────────────────────────────────
+${BROWSER}    chrome
+${HEADLESS}    False
+${TIMEOUT}    15s
 
-# Database settings
-${DB_HOST}           %{DB_HOST=localhost}
-${DB_PORT}           %{DB_PORT=5432}
-${DB_NAME}           %{DB_NAME=test_db}
-${DB_USER}           %{DB_USER=test_user}
-${DB_PASSWORD}       %{DB_PASSWORD=test_password}
-${DB_TYPE}           %{DB_TYPE=postgresql}
+# ── Database settings ─────────────────────────────────────────────────────────
+# Default: SQLite — works everywhere with no external service.
+# Set DB_TYPE to postgresql / mysql / mongodb for production environments.
+${DB_TYPE}    %{DB_TYPE=sqlite}
+${DB_NAME}    %{DB_NAME=results/test.db}
+${DB_HOST}    %{DB_HOST=localhost}
+${DB_PORT}    %{DB_PORT=5432}
+${DB_USER}    %{DB_USER=test_user}
+${DB_PASSWORD}    %{DB_PASSWORD=test_password}
 
-# Security settings
-${ZAP_PROXY}         %{ZAP_PROXY=}
-${ZAP_API_KEY}       %{ZAP_API_KEY=}
+# ── ZAP proxy (passive security scanning) ────────────────────────────────────
+# Leave empty to run normally.    CI sets ZAP_PROXY=http://localhost:8080 so all
+# traffic is observed by ZAP without needing dedicated security test cases.
+${ZAP_PROXY}    %{ZAP_PROXY=}
 
-# Common selectors
-${SEARCH_INPUT}      id:search
-${SUBMIT_BUTTON}     id:submit
-${ERROR_MESSAGE}     css:.error-message
+# ── Common API headers ────────────────────────────────────────────────────────
+&{API_HEADERS}    Content-Type=application/json    Accept=application/json
 
-# Test data
-${VALID_EMAIL}       test@example.com
-${INVALID_EMAIL}     invalid-email
+# ── Common selectors (override in your suite as needed) ──────────────────────
+${ERROR_MESSAGE}    css=.error-message
+
 
 *** Keywords ***
+# ─── Browser ──────────────────────────────────────────────────────────────────
+
 Open Browser To Base URL
-    [Documentation]    Opens browser to the base URL with common settings and optional ZAP proxy
-    [Arguments]        ${url}=${BASE_URL}
-    
-    # Check if ZAP proxy is enabled and configure browser accordingly
-    ${zap_enabled}=    Is Zap Proxy Enabled
-    ${browser_options}=    Set Variable    add_argument("--disable-web-security");add_argument("--disable-features=VizDisplayCompositor")
-    
-    IF    ${zap_enabled}
-        ${zap_proxy_args}=    Configure Browser With Zap Proxy
-        ${browser_options}=    Set Variable    ${browser_options};${zap_proxy_args}
-        Log    Browser configured with ZAP proxy for security testing
+    [Documentation]    Open ${BROWSER} to ${url}, optionally routing through ZAP.
+    [Arguments]    ${url}=${BASE_URL}
+
+    ${browser_engine}=    Resolve Browser Engine    ${BROWSER}
+    ${headless_mode}=    Convert To Boolean    ${HEADLESS}
+    New Browser    ${browser_engine}    headless=${headless_mode}
+    New Browser Context
+    New Page    ${url}
+    Set Browser Timeout    ${TIMEOUT}
+
+New Browser Context
+    [Documentation]    Create a Browser context, optionally routing through ZAP.
+    IF    '${ZAP_PROXY}' != '${EMPTY}'
+        New Context    ignoreHTTPSErrors=${True}    proxy={'server': '${ZAP_PROXY}'}
+        Log    Browser proxied through ZAP: ${ZAP_PROXY}
+    ELSE
+        New Context
     END
-    
-    Open Browser       ${url}    ${BROWSER}    options=${browser_options}
-    Set Window Size    1920    1080
-    Set Selenium Timeout    ${TIMEOUT}
-    Set Selenium Implicit Wait    ${IMPLICIT_WAIT}
+
+Resolve Browser Engine
+    [Documentation]    Map common browser names to Browser Library engines.
+    [Arguments]    ${browser_name}
+    ${normalized}=    Convert To Lower Case    ${browser_name}
+    IF    '${normalized}' in ['chrome', 'chromium', 'edge']
+        RETURN    chromium
+    ELSE IF    '${normalized}' == 'firefox'
+        RETURN    firefox
+    ELSE IF    '${normalized}' in ['safari', 'webkit']
+        RETURN    webkit
+    ELSE
+        Fail    Unsupported BROWSER: ${browser_name}. Expected chrome/chromium/edge, firefox, or webkit.
+    END
 
 Close All Browsers And Sessions
-    [Documentation]    Clean up after tests
-    Close All Browsers
-    Delete All Sessions
-    Disconnect From All Databases
+    [Documentation]    Tear down browsers, HTTP sessions, and DB connections.
+    Run Keyword And Ignore Error    Close Browser    ALL
+    Run Keyword And Ignore Error    Delete All Sessions
+    Run Keyword And Ignore Error    DatabaseUtils.Disconnect From All Databases
+
+Take Screenshot On Failure
+    [Documentation]    Capture a screenshot when the test status is FAIL.
+    IF    '${TEST STATUS}' == 'FAIL'
+        Run Keyword And Ignore Error    Create Directory    ${OUTPUT DIR}/screenshots
+        Run Keyword And Ignore Error
+        ...    Take Screenshot
+        ...    filename=${OUTPUT DIR}/screenshots/browser-screenshot-{index}.png
+    END
 
 Wait And Click Element
-    [Documentation]    Wait for element to be visible and click it
-    [Arguments]        ${locator}    ${timeout}=${TIMEOUT}
-    Wait Until Element Is Visible    ${locator}    ${timeout}
-    Click Element      ${locator}
+    [Documentation]    Wait for element to be visible then click it.
+    [Arguments]    ${locator}    ${timeout}=${TIMEOUT}
+    Wait For Elements State    ${locator}    visible    ${timeout}
+    Click    ${locator}
 
 Input Text And Verify
-    [Documentation]    Input text and verify it was entered correctly
-    [Arguments]        ${locator}    ${text}
-    Wait Until Element Is Visible    ${locator}
-    Clear Element Text    ${locator}
-    Input Text         ${locator}    ${text}
-    ${actual_text}=    Get Value    ${locator}
-    Should Be Equal    ${actual_text}    ${text}
+    [Documentation]    Type text into a field and assert it was accepted.
+    [Arguments]    ${locator}    ${text}
+    Wait For Elements State    ${locator}    visible    ${TIMEOUT}
+    Fill Text    ${locator}    ${text}
+    ${actual}=    Get Property    ${locator}    value
+    Should Be Equal    ${actual}    ${text}
+
+# ─── API ──────────────────────────────────────────────────────────────────────
 
 Create API Session
-    [Documentation]    Create a session for API testing with optional ZAP proxy
-    [Arguments]        ${alias}=api    ${base_url}=${API_BASE_URL}
-    
-    # Check if ZAP proxy is enabled and configure requests accordingly
-    ${zap_enabled}=    Is Zap Proxy Enabled
-    
-    IF    ${zap_enabled}
-        ${proxy_config}=    Configure Requests With Zap Proxy
-        Create Session     ${alias}    ${base_url}
-        ...                headers={'Content-Type': 'application/json'}
-        ...                proxies=${proxy_config['proxies']}
-        ...                verify=${proxy_config['verify']}
-        Log    API session configured with ZAP proxy for security testing
+    [Documentation]    Open an HTTP session to ${base_url}, optionally via ZAP proxy.
+    [Arguments]    ${alias}=api    ${base_url}=${API_BASE_URL}
+
+    IF    '${ZAP_PROXY}' != '${EMPTY}'
+        ${proxies}=    Create Dictionary    http=${ZAP_PROXY}    https=${ZAP_PROXY}
+        Create Session    ${alias}    ${base_url}    headers=${API_HEADERS}    proxies=${proxies}    verify=${False}
+        Log    API session proxied through ZAP: ${ZAP_PROXY}
     ELSE
-        Create Session     ${alias}    ${base_url}
-        ...                headers={'Content-Type': 'application/json'}
+        Create Session    ${alias}    ${base_url}    headers=${API_HEADERS}    verify=${True}
     END
 
 Verify API Response
-    [Documentation]    Common API response verification
-    [Arguments]        ${response}    ${expected_status}=200
+    [Documentation]    Assert status code and JSON content-type.
+    [Arguments]    ${response}    ${expected_status}=200
     Should Be Equal As Strings    ${response.status_code}    ${expected_status}
-    Should Be True    ${response.headers['Content-Type'].startswith('application/json')}
+    Should Be True    $response.headers.get('Content-Type','').startswith('application/json')
 
-Take Screenshot On Failure
-    [Documentation]    Take screenshot when test fails
-    Run Keyword If Test Failed    Capture Page Screenshot
+# ─── Database ─────────────────────────────────────────────────────────────────
 
-# Database Keywords
 Setup Database Connection
-    [Documentation]    Setup database connection based on DB_TYPE
-    IF    '${DB_TYPE}' == 'postgresql'
+    [Documentation]    Connect to the database selected by DB_TYPE.
+    IF    '${DB_TYPE}' == 'sqlite'
+        Connect To Sqlite    ${DB_NAME}
+    ELSE IF    '${DB_TYPE}' == 'postgresql'
         Connect To Postgresql    ${DB_HOST}    ${DB_PORT}    ${DB_NAME}    ${DB_USER}    ${DB_PASSWORD}
     ELSE IF    '${DB_TYPE}' == 'mysql'
         Connect To Mysql    ${DB_HOST}    ${DB_PORT}    ${DB_NAME}    ${DB_USER}    ${DB_PASSWORD}
     ELSE IF    '${DB_TYPE}' == 'mongodb'
         Connect To Mongodb    ${DB_HOST}    ${DB_PORT}    ${DB_NAME}    ${DB_USER}    ${DB_PASSWORD}
     ELSE
-        Log    Database type '${DB_TYPE}' not supported    WARN
+        Fail    Unsupported DB_TYPE: '${DB_TYPE}'. Expected sqlite / postgresql / mysql / mongodb.
     END
 
 Cleanup Database Connection
-    [Documentation]    Clean up database connections
-    Disconnect From All Databases
+    [Documentation]    Close all database connections.
+    DatabaseUtils.Disconnect From All Databases
 
 Execute Database Query
-    [Documentation]    Execute database query based on database type
-    [Arguments]        ${query}    ${collection_name}=${EMPTY}
+    [Documentation]    Run a query; use collection_name for MongoDB.
+    [Arguments]    ${query}    ${collection_name}=${EMPTY}
     IF    '${DB_TYPE}' == 'mongodb' and '${collection_name}' != '${EMPTY}'
         ${result}=    Execute Mongodb Query    ${collection_name}    ${query}
     ELSE
@@ -140,54 +161,16 @@ Execute Database Query
     RETURN    ${result}
 
 Insert Database Test Data
-    [Documentation]    Insert test data into database
-    [Arguments]        ${table_name}    ${data}
+    [Documentation]    Insert a dict (or list of dicts) into table/collection.
+    [Arguments]    ${table_name}    ${data}
     Insert Test Data    ${table_name}    ${data}
 
 Clean Database Test Data
-    [Documentation]    Clean up test data from database
-    [Arguments]        ${table_name}    ${condition}
+    [Documentation]    Delete records matching condition from table/collection.
+    [Arguments]    ${table_name}    ${condition}
     Cleanup Test Data    ${table_name}    ${condition}
 
 Verify Database Record Count
-    [Documentation]    Verify number of records in database table
-    [Arguments]        ${table_name}    ${expected_count}    ${condition}=${EMPTY}
+    [Documentation]    Assert the number of records (optionally filtered).
+    [Arguments]    ${table_name}    ${expected_count}    ${condition}=${EMPTY}
     Verify Database State    ${table_name}    ${expected_count}    ${condition}
-
-# Security Testing Keywords
-Start Security Spider Scan
-    [Documentation]    Start ZAP spider scan if security testing is enabled
-    [Arguments]        ${target_url}=${BASE_URL}
-    ${scan_id}=    Start Zap Spider    ${target_url}
-    RETURN    ${scan_id}
-
-Wait For Spider Scan Complete
-    [Documentation]    Wait for ZAP spider scan to complete
-    [Arguments]        ${scan_id}    ${timeout}=300
-    Wait For Zap Spider Completion    ${scan_id}    ${timeout}
-
-Start Security Active Scan
-    [Documentation]    Start ZAP active security scan
-    [Arguments]        ${target_url}=${BASE_URL}
-    ${scan_id}=    Start Zap Active Scan    ${target_url}
-    RETURN    ${scan_id}
-
-Wait For Active Scan Complete
-    [Documentation]    Wait for ZAP active scan to complete
-    [Arguments]        ${scan_id}    ${timeout}=600
-    Wait For Zap Active Scan Completion    ${scan_id}    ${timeout}
-
-Generate Security Report
-    [Documentation]    Generate ZAP security report
-    [Arguments]        ${format}=HTML    ${filename}=security_report.html
-    ${report_path}=    Generate Zap Report    ${format}    ${filename}
-    RETURN    ${report_path}
-
-Verify No High Risk Vulnerabilities
-    [Documentation]    Verify no high-risk vulnerabilities were found
-    [Arguments]        ${base_url}=${BASE_URL}
-    Verify No High Risk Vulnerabilities    ${base_url}
-
-Clear Security Session
-    [Documentation]    Clear ZAP session data
-    Clear Zap Session

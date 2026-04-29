@@ -163,6 +163,7 @@ cython_debug/
 results/
 logs/
 output/
+.pabotsuitenames
 *.html
 *.xml
 log.html
