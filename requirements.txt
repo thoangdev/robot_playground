@@ -18,7 +18,7 @@ requests==2.33.1
 robotframework-databaselibrary==2.4.1
 psycopg2-binary==2.9.10        # PostgreSQL
 PyMySQL==1.1.1                 # MySQL / MariaDB
-pymongo==4.10.1                # MongoDB
+pymongo==4.18.3                # MongoDB
 
 # Parallel Execution
 robotframework-pabot==2.18.0
